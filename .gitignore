@@ -1,0 +1,17 @@
+.ctxproxy/
+
+# Built binary
+/pulseboard
+
+# SQLite database and WAL/SHM files
+*.db
+*.db-*
+
+# Personal Claude Code settings
+.claude/settings.local.json
+
+# Personal context-budget tooling (not part of pulseboard)
+.claude-plugin/
+plugins/
+tools/
+opencode.json
