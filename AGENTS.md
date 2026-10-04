@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-`pulseboard` — a platform to collect, store, and visualize system/application metrics. It is a single Go binary (module `github.com/shashanksbs45/pulseboard`, Go 1.26): `cmd/pulseboard` (CLI entrypoint, `serve` subcommand) and `internal/` packages (`config`, `server`, `ingest`, `store`, `store/sqlite`, `retention`). Storage is SQLite via the pure-Go `modernc.org/sqlite` driver, so builds need no CGO. All product work starts as an OpenSpec change. There is no CI yet.
+`pulseboard` — a platform to collect, store, and visualize system/application metrics. It is a single Go binary (module `github.com/shashanksbs45/pulseboard`, Go 1.26): `cmd/pulseboard` (CLI entrypoint, `serve` subcommand) and `internal/` packages (`config`, `server`, `ingest`, `store`, `store/sqlite`, `retention`). Storage is SQLite via the pure-Go `modernc.org/sqlite` driver, so builds need no CGO. All product work starts as an OpenSpec change. CI is GitHub Actions (`.github/workflows/ci.yml`), which runs `scripts/check.sh` on pushes to `main` and on pull requests.
 
 ## Commands
 
