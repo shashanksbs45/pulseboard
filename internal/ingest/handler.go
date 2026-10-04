@@ -40,7 +40,7 @@ type Response struct {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !h.authorized(r) {
 		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeError(w, http.StatusUnauthorized, "missing or invalid bearer token")
+		h.writeError(w, http.StatusUnauthorized, "missing or invalid bearer token")
 		return
 	}
 
@@ -48,29 +48,29 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			writeError(w, http.StatusRequestEntityTooLarge, "request body exceeds 5 MiB")
+			h.writeError(w, http.StatusRequestEntityTooLarge, "request body exceeds 5 MiB")
 			return
 		}
-		writeError(w, http.StatusBadRequest, "could not read request body")
+		h.writeError(w, http.StatusBadRequest, "could not read request body")
 		return
 	}
 
 	var raws []json.RawMessage
 	if firstByte(body) != '[' || json.Unmarshal(body, &raws) != nil {
-		writeError(w, http.StatusBadRequest, "body must be a JSON array of point objects")
+		h.writeError(w, http.StatusBadRequest, "body must be a JSON array of point objects")
 		return
 	}
 	if len(raws) == 0 {
-		writeError(w, http.StatusBadRequest, "batch is empty")
+		h.writeError(w, http.StatusBadRequest, "batch is empty")
 		return
 	}
 	if len(raws) > MaxPoints {
-		writeError(w, http.StatusRequestEntityTooLarge, "batch exceeds 5,000 points")
+		h.writeError(w, http.StatusRequestEntityTooLarge, "batch exceeds 5,000 points")
 		return
 	}
 	for _, raw := range raws {
 		if firstByte(raw) != '{' {
-			writeError(w, http.StatusBadRequest, "body must be a JSON array of point objects")
+			h.writeError(w, http.StatusBadRequest, "body must be a JSON array of point objects")
 			return
 		}
 	}
@@ -98,7 +98,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		storeRejected, err := h.Store.Write(r.Context(), valid)
 		if err != nil {
 			h.logger().Error("ingest write failed", "err", err, "points", len(valid))
-			writeError(w, http.StatusInternalServerError, "failed to store points")
+			h.writeError(w, http.StatusInternalServerError, "failed to store points")
 			return
 		}
 		for _, rej := range storeRejected {
@@ -115,7 +115,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case len(rejected) > 0:
 		status = http.StatusMultiStatus
 	}
-	writeJSON(w, status, resp)
+	h.writeJSON(w, status, resp)
 }
 
 func (h *Handler) authorized(r *http.Request) bool {
@@ -140,12 +140,15 @@ func firstByte(b []byte) byte {
 	return b[0]
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func (h *Handler) writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		// The status is already sent; usually the client went away mid-response.
+		h.logger().Warn("ingest response write failed", "err", err, "status", status)
+	}
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
+func (h *Handler) writeError(w http.ResponseWriter, status int, msg string) {
+	h.writeJSON(w, status, map[string]string{"error": msg})
 }

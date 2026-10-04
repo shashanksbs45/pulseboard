@@ -35,7 +35,7 @@ func New(st store.Store, ingest http.Handler) *Server {
 			http.Error(w, "database unreachable", http.StatusServiceUnavailable)
 			return
 		}
-		w.Write([]byte("ok\n"))
+		_, _ = w.Write([]byte("ok\n")) // nothing useful to do if the client went away
 	})
 	return &Server{
 		http:  &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second},

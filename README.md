@@ -103,6 +103,15 @@ go vet ./...
 go test -race ./...
 ```
 
+To run every quality check (go build, gofmt, go vet, golangci-lint, tests, race tests, govulncheck, the Docker image build when Docker is running, and the OpenAPI checks once a spec exists) and get a pass/fail summary:
+
+```sh
+scripts/check.sh            # all checks
+scripts/check.sh lint race  # only some
+```
+
+It exits non-zero if any check fails. golangci-lint and govulncheck use your installed binaries if present, and otherwise run pinned versions with `go run`.
+
 ### End-to-end check
 
 This starts the built binary on a temporary database, pushes a mixed batch, stops the server with SIGTERM, restarts it, and confirms that the accepted points survived:

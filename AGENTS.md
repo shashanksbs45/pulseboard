@@ -9,6 +9,7 @@
 - Build: `go build ./...`
 - Test: `go test -race ./...` (tests use temp-file SQLite databases; nothing external is needed)
 - Vet: `go vet ./...`
+- All quality checks: `scripts/check.sh` (go build, gofmt, vet, golangci-lint, test, race, govulncheck, Docker image build — skipped without a Docker daemon, OpenAPI lint/contract — skipped until `openapi.yaml` exists). Run a subset with e.g. `scripts/check.sh lint race`. Run it before committing.
 - Run locally: `PULSEBOARD_INGEST_TOKEN=dev go run ./cmd/pulseboard serve` (see `README.md` for config and the end-to-end check)
 
 ## Source of truth
@@ -25,5 +26,5 @@
 
 ## Gotchas
 
-- Do not invent npm scripts, Makefiles or extra test commands; the Go toolchain commands above are the only ones configured.
+- Do not invent npm scripts, Makefiles or extra test commands; the Go toolchain commands and `scripts/check.sh` above are the only ones configured. Add new checks to `scripts/check.sh`.
 - `opencode.json`, `.claude-plugin/`, `plugins/`, `tools/` and `.claude/settings.local.json` are personal tooling (the context-budget plugin and ctx-proxy; `opencode.json` only routes OpenCode through that proxy) and are gitignored — keep agent guidance in this file, not in OpenCode config.
