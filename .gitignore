@@ -11,7 +11,5 @@
 .claude/settings.local.json
 
 # Personal context-budget tooling (not part of pulseboard)
-.claude-plugin/
-plugins/
 tools/
 opencode.json

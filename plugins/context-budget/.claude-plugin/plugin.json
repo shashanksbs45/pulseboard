@@ -1,0 +1,9 @@
+{
+  "name": "context-budget",
+  "version": "0.1.0",
+  "description": "See where Claude Code's context tokens go and cut them: a fail-open local logging proxy, a per-component token report, and tested tool/MCP profiles (31-71% fewer input tokens per request in local tests).",
+  "author": {
+    "name": "sbhat4545"
+  },
+  "keywords": ["tokens", "context", "cost", "mcp", "proxy"]
+}

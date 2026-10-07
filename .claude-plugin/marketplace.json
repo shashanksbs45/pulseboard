@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "pulseboard-tools",
+  "description": "Internal developer tooling from the pulseboard repo",
+  "owner": {
+    "name": "sbhat4545"
+  },
+  "plugins": [
+    {
+      "name": "context-budget",
+      "description": "Measure and cut Claude Code context tokens: fail-open logging proxy, token report, tool/MCP profiles",
+      "source": "./plugins/context-budget"
+    }
+  ]
+}

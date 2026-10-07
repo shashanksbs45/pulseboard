@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "deny": [
+      "NotebookEdit",
+      "PushNotification",
+      "RemoteTrigger",
+      "ScheduleWakeup",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "Monitor",
+      "mcp__claude_ai_Indeed",
+      "mcp__claude_ai_Google_Calendar"
+    ]
+  }
+}
