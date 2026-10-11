@@ -7,6 +7,7 @@ set -uo pipefail
 
 GOLANGCI_LINT_VERSION=v2.14.0
 GOVULNCHECK_VERSION=v1.8.0
+REDOCLY_CLI_VERSION=2.62.1
 
 cd "$(dirname "$0")/.."
 
@@ -55,7 +56,7 @@ check_vuln() { govulncheck_ ./...; }
 # OpenAPI checks are skipped until the repo has a spec (openapi.yaml).
 check_openapi_lint() {
 	[[ -f openapi.yaml ]] || { echo "no openapi.yaml yet"; return 77; }
-	npx --yes @redocly/cli@latest lint openapi.yaml
+	npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint openapi.yaml
 }
 check_openapi_contract() {
 	[[ -f openapi.yaml ]] || { echo "no openapi.yaml yet"; return 77; }

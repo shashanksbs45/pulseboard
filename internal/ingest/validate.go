@@ -40,8 +40,10 @@ func isNull(raw json.RawMessage) bool {
 func validate(raw json.RawMessage, now time.Time, retention time.Duration) (store.Point, string) {
 	var rp rawPoint
 	if err := json.Unmarshal(raw, &rp); err != nil {
-		// The handler only passes JSON objects; a field-level type error
-		// cannot happen with RawMessage fields, so this is a malformed object.
+		// Unreachable: the handler only passes elements of a successfully
+		// decoded array that start with '{', and RawMessage fields accept any
+		// JSON value. The reason code is a placeholder; if this becomes
+		// reachable, give it a reason code of its own.
 		return store.Point{}, store.ReasonInvalidName
 	}
 	var p store.Point

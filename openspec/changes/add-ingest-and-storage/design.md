@@ -92,7 +92,7 @@ Decisions are grouped by the C4 element they shape.
 `flag.NewFlagSet("serve")` handles flags. For each setting, an env var supplies the default and an explicit flag overrides it. *Alternative:* cobra plus viper. That's two dependencies for one subcommand and four settings, which isn't worth it yet.
 
 #### Graceful shutdown
-`signal.NotifyContext(SIGINT, SIGTERM)` stops the server. Shutdown then runs `http.Server.Shutdown` with a 10s timeout, stops the retention loop, and closes the store.
+`signal.NotifyContext(SIGINT, SIGTERM)` stops the server. Shutdown then runs `http.Server.Shutdown` with a 10s timeout, stops the retention loop, and closes the store. If the timeout expires, `Shutdown` returns `context.DeadlineExceeded`, which `serve` reports as an error, so the process exits non-zero to show that requests were cut off.
 
 #### Clock injection
 `ingest` and `retention` take a `func() time.Time`. Tests pin it, which makes the receive-time, future-timestamp and expiry scenarios deterministic.

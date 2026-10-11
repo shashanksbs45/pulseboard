@@ -73,7 +73,7 @@ Then the response status is 200
 ```
 
 ### Requirement: Graceful shutdown
-On SIGINT or SIGTERM, the system SHALL stop accepting new connections, finish in-flight requests for up to 10 seconds, close the database, and exit with status 0.
+On SIGINT or SIGTERM, the system SHALL stop accepting new connections, finish in-flight requests for up to 10 seconds, close the database, and exit with status 0. If in-flight requests are still running after 10 seconds, the system SHALL close the database anyway and exit with a non-zero status.
 
 #### Scenario: In-flight ingest completes on shutdown
 ```gherkin
