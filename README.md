@@ -21,6 +21,26 @@ Check that it's healthy (no token needed). It returns 200 when the database is r
 curl -i http://localhost:8080/healthz
 ```
 
+## Run with Docker
+
+The image runs `pulseboard serve` as the unprivileged user 65532, listens on port 8080 and keeps its database at `/data/pulseboard.db`. Mount a volume on `/data` so the data outlives the container:
+
+```sh
+docker build -t pulseboard .
+docker run -d --name pulseboard \
+  -e PULSEBOARD_INGEST_TOKEN=change-me \
+  -p 8080:8080 \
+  -v pulseboard-data:/data \
+  --stop-timeout 15 \
+  pulseboard
+curl -i http://localhost:8080/healthz
+```
+
+- **Settings:** the environment variables and flags from [Configuration](#configuration) work unchanged, e.g. `-e PULSEBOARD_RETENTION=720h`, or flags after the image name: `pulseboard serve --retention 720h`.
+- **Bind mounts:** a host directory must be writable by UID 65532, or the container can't create the database and exits at startup. Run `sudo chown 65532:65532 /path/to/dir` first. A named volume, as above, needs nothing.
+- **Stopping:** the server drains in-flight requests for up to 10 seconds, which is also Docker's default stop timeout, so a slow request could be killed before the database closes. `--stop-timeout 15` (or `stop_grace_period: 15s` in Compose) gives it room. `docker stop pulseboard` then exits with status 0.
+- **Health checks:** the image has no `HEALTHCHECK`, because the distroless base has no shell or HTTP client. Probe `GET /healthz` from outside instead, for example a Kubernetes `httpGet` liveness and readiness probe on port 8080. It returns 503 when the database is unreachable.
+
 ## Configuration
 
 Each setting can be passed as a flag or an environment variable. If both are set, the flag wins.
@@ -103,7 +123,7 @@ go vet ./...
 go test -race ./...
 ```
 
-To run every quality check (go build, gofmt, go vet, golangci-lint, tests, race tests, govulncheck, the Docker image build when Docker is running, and the OpenAPI checks once a spec exists) and get a pass/fail summary:
+To run every quality check (go build, gofmt, go vet, golangci-lint, tests, race tests, govulncheck, the Docker image build and container smoke test when Docker is running, and the OpenAPI checks once a spec exists) and get a pass/fail summary:
 
 ```sh
 scripts/check.sh            # all checks

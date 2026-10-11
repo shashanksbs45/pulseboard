@@ -9,7 +9,7 @@
 - Build: `go build ./...`
 - Test: `go test -race ./...` (tests use temp-file SQLite databases; nothing external is needed)
 - Vet: `go vet ./...`
-- All quality checks: `scripts/check.sh` (go build, gofmt, vet, golangci-lint, test, race, govulncheck, Docker image build — skipped without a Docker daemon, OpenAPI lint/contract — skipped until `openapi.yaml` exists). Run a subset with e.g. `scripts/check.sh lint race`. Run it before committing.
+- All quality checks: `scripts/check.sh` (go build, gofmt, vet, golangci-lint, test, race, govulncheck, Docker image build and container smoke test — both skipped without a Docker daemon, OpenAPI lint/contract — skipped until `openapi.yaml` exists). Run a subset with e.g. `scripts/check.sh lint race`. Run it before committing.
 - Run locally: `PULSEBOARD_INGEST_TOKEN=dev go run ./cmd/pulseboard serve` (see `README.md` for config and the end-to-end check)
 
 ## Source of truth
