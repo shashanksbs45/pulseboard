@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Best-effort cleanup and stderr writes: there is nothing useful to do on failure.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Conn).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Tx).Rollback
+        - (*github.com/shashanksbs45/pulseboard/internal/store/sqlite.Store).Close
+        - fmt.Fprint
+        - fmt.Fprintf
