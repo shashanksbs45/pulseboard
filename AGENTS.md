@@ -14,7 +14,7 @@
 
 ## Source of truth
 
-- `openspec/config.yaml` — schema is `spec-driven`. Specs live in `openspec/specs/`, change proposals in `openspec/changes/`, completed work archives to `openspec/changes/archive/`. All three are currently empty (only `.gitkeep`).
+- `openspec/config.yaml` — schema is `spec-driven`. Specs live in `openspec/specs/`, change proposals in `openspec/changes/`, completed work archives to `openspec/changes/archive/`. Main specs cover `ingestion`, `server`, `storage` and `deployment`; run `openspec list --json` to see active changes.
 - `process.md` — how this repo was bootstrapped (`openspec init`, `npx skills@latest add mattpocock/skills --skill=grill-me`, `openspec config profile`; note `opespec` on line 1 is a typo).
 - `skills-lock.json` — skills installed from `mattpocock/skills`: `grill-me`, `grill-with-docs`, `grilling` (also present in `.agents/skills/`). Reinstall/update via the `skills` CLI, not by hand-editing.
 
