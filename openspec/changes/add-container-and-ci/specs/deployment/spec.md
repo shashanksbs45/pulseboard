@@ -60,10 +60,12 @@ Points accepted by a container SHALL survive replacing that container with a new
 
 #### Scenario: Data survives container replacement
 ```gherkin
-Given a pulseboard container with a named volume mounted at /data has accepted a batch of points
+# Until a query API exists, the type conflict is the observable proof that
+# the first container's counter survived.
+Given a pulseboard container with a named volume mounted at /data has accepted a counter named jobs_done
 When the operator removes that container and starts a new one with the same volume
 Then the new container reports the database as reachable on /healthz
-And every point the first container accepted is still stored
+And the new container rejects a gauge named jobs_done as a type conflict
 ```
 
 ### Requirement: Clean stop

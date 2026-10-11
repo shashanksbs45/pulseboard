@@ -61,6 +61,7 @@ check_container() (
 
 	cleanup() {
 		local status=$?
+		# -v: the image's VOLUME /data gives each container without -v an anonymous volume.
 		docker ps -aq --filter "label=pulseboard.check=${id}" | xargs docker rm -fv >/dev/null 2>&1 || true
 		docker volume rm -f "$volume" >/dev/null 2>&1 || true
 		docker image rm -f "$image" >/dev/null 2>&1 || true
@@ -139,7 +140,7 @@ check_container() (
 	[[ $uids == 65532 ]] || fail main "processes run as UID(s) '${uids//$'\n'/,}', want 65532"
 
 	echo "-- idle container stops cleanly"
-	body=$(ingest main '[{"name":"check_persist","type":"counter","value":1}]')
+	body=$(ingest main '[{"name":"jobs_done","type":"counter","value":1}]')
 	[[ $body == *'"accepted":1'* ]] || fail main "counter point not accepted: $body"
 	docker stop "${id}-main" >/dev/null
 	status=$(docker inspect -f '{{.State.ExitCode}}' "${id}-main")
@@ -151,7 +152,7 @@ check_container() (
 	wait_healthy main2 8080
 	# No query API yet: rejecting the same name with the other type proves the
 	# first container's point is still stored.
-	body=$(ingest main2 '[{"name":"check_persist","type":"gauge","value":1}]')
+	body=$(ingest main2 '[{"name":"jobs_done","type":"gauge","value":1}]')
 	[[ $body == *'"type_conflict"'* ]] || fail main2 "expected type_conflict from the replaced container, got: $body"
 
 	echo "-- operator overrides the listen address"

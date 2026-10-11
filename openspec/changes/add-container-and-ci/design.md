@@ -20,7 +20,7 @@ The `docker` check only builds the image. Nothing runs it, so none of the `deplo
 - Every tool version the checks use is pinned.
 
 **Non-Goals:**
-- A Go test harness for containers (testcontainers or similar). A shell smoke test is enough for six scenarios.
+- A Go test harness for containers (testcontainers or similar). A shell smoke test is enough for seven scenarios.
 - Pinning GitHub Actions to commit SHAs. Major-version tags are acceptable for a personal repo; revisit if the repo takes outside contributions.
 - Changing Go code. The `server` capability already provides everything the container needs.
 
@@ -44,10 +44,10 @@ A new `check_container` in `scripts/check.sh` runs the `deployment` scenarios ag
 1. builds the image (layer cache makes this cheap after `docker`), with a unique tag and container names so parallel runs don't collide;
 2. runs it without a token and asserts a non-zero exit and an "ingest token" log line;
 3. runs it with a token, a named volume on `/data` and a published port, waits for `/healthz` to return 200, and checks `docker top` for UID 65532;
-4. posts a `counter` point, replaces the container with a new one on the same volume, then posts a `gauge` with the same name and expects `type_conflict`. There is no query API yet, so this rejection is the observable proof that the first point survived;
+4. posts a `counter` point, replaces the container with a new one on the same volume, then posts a `gauge` with the same name and expects `type_conflict`. There is no query API yet, so this rejection is the observable proof that the first point survived. It proves that the metric survived, not every point, so the scenario claims only the rejection; the query API change should strengthen it to read the stored points back;
 5. runs with `PULSEBOARD_ADDR=:9090` and with the command `serve --retention 24h`, and checks `/healthz` and the startup log line respectively;
 6. stops a container with `docker stop` and asserts exit status 0;
-7. removes its containers, volume and image tag on exit, through a `trap`, even when a step fails.
+7. removes its containers, volume and image tag on exit, through a `trap`, even when a step fails. Containers are removed with `docker rm -fv`, not `-f`: the image declares `VOLUME /data`, so every container started without `-v` gets an anonymous volume that `-f` leaves behind. `-v` deletes only those anonymous volumes, never the named one.
 
 *Alternative:* a Go test behind a build tag that shells out to Docker. It's more structured, but needs Docker inside `go test` and duplicates what a 60-line script does.
 
