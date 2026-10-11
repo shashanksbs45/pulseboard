@@ -1,6 +1,6 @@
 module github.com/shashanksbs45/pulseboard
 
-go 1.26.8
+go 1.26.9
 
 require modernc.org/sqlite v1.60.1
 
