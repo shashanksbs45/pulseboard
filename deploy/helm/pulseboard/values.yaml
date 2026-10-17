@@ -1,0 +1,42 @@
+# Image to run. The defaults match `docker build -t pulseboard:dev .` followed by
+# `minikube image load pulseboard:dev`;
+# point these at a registry for other clusters.
+image:
+  repository: pulseboard
+  tag: dev
+  pullPolicy: IfNotPresent
+
+# Bearer token for the ingest endpoint. Set this or existingSecret; the install
+# fails if neither is set. The chart stores this value in a Secret it creates.
+ingestToken: ""
+
+# Name of a Secret you manage that holds the ingest token. When set, it is used
+# instead of ingestToken and the chart creates no Secret.
+existingSecret: ""
+# Key inside existingSecret that holds the token.
+existingSecretKey: ingest-token
+
+# How long raw points are kept, as a Go duration (e.g. 720h). Empty keeps the
+# server's default (168h).
+retention: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# The SQLite database lives on this claim. It is kept on `helm uninstall`, so
+# reinstalling the same release reuses the data.
+persistence:
+  size: 1Gi
+  # Empty uses the cluster's default StorageClass.
+  storageClass: ""
+
+resources: {}
+
+podAnnotations: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

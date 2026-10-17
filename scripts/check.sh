@@ -164,6 +164,81 @@ check_container() (
 	wait_log flags "retention=24h0m0s"
 )
 
+# Lints the Helm chart and asserts properties of its rendered manifests; skipped
+# when helm is not installed. Needs no cluster. Runs in a subshell so set -e
+# and the helpers stay local.
+check_helm() (
+	set -e
+	command -v helm >/dev/null || { echo "helm not installed"; exit 77; }
+
+	local chart=deploy/helm/pulseboard
+
+	# Prints a failure, plus the rendered manifest if one is given, and fails the check.
+	fail() {
+		echo "FAIL: $1"
+		if [[ -n ${2-} ]]; then
+			echo "--- rendered:"
+			echo "$2"
+		fi
+		exit 1
+	}
+
+	# Renders the chart as release "check" with the given --set options.
+	render() { helm template check "$chart" "$@" 2>&1; }
+
+	# Prints one template's documents from a full render, e.g. section "$out" secret.yaml.
+	# (--show-only errors on a template that renders nothing, so split the output instead.)
+	section() { awk -v src="# Source: pulseboard/templates/$2" '/^# Source: /{ on = ($0 == src) } on' <<<"$1"; }
+
+	# Asserts that rendered text contains, or lacks, a fixed string.
+	has()   { grep -qF -- "$2" <<<"$1" || fail "$3: missing '$2'" "$1"; }
+	lacks() { ! grep -qF -- "$2" <<<"$1" || fail "$3: unexpected '$2'" "$1"; }
+
+	echo "-- lint"
+	helm lint "$chart" --set ingestToken=check
+
+	echo "-- no ingest token"
+	if out=$(render); then
+		fail "chart rendered without an ingest token" "$out"
+	fi
+	has "$out" "ingest token" "error without a token"
+
+	echo "-- token given as a value"
+	out=$(render --set ingestToken=check)
+	has "$(section "$out" secret.yaml)" "kind: Secret" "secret.yaml with ingestToken"
+
+	echo "-- existing Secret wins over a token value"
+	out=$(render --set ingestToken=check --set existingSecret=pb-token)
+	[[ -z $(section "$out" secret.yaml) ]] || fail "secret.yaml rendered although existingSecret is set" "$out"
+	has "$(section "$out" deployment.yaml)" "name: pb-token" "deployment.yaml token Secret"
+
+	echo "-- single pod, non-root, probes, grace period"
+	out=$(render --set ingestToken=check)
+	dep=$(section "$out" deployment.yaml)
+	has "$dep" "replicas: 1" "deployment.yaml"
+	has "$dep" "type: Recreate" "deployment.yaml"
+	has "$dep" "runAsUser: 65532" "deployment.yaml"
+	has "$dep" "runAsGroup: 65532" "deployment.yaml"
+	has "$dep" "fsGroup: 65532" "deployment.yaml"
+	has "$dep" "terminationGracePeriodSeconds: 15" "deployment.yaml"
+	[[ $(grep -cF "path: /healthz" <<<"$dep") == 2 ]] || fail "deployment.yaml: want readiness and liveness probes on /healthz" "$dep"
+	has "$dep" "containerPort: 8080" "deployment.yaml"
+	lacks "$dep" "PULSEBOARD_RETENTION" "deployment.yaml without retention"
+
+	echo "-- data kept on uninstall"
+	has "$(section "$out" pvc.yaml)" "helm.sh/resource-policy: keep" "pvc.yaml"
+
+	echo "-- operator sets retention"
+	dep=$(section "$(render --set ingestToken=check --set retention=720h)" deployment.yaml)
+	has "$dep" "PULSEBOARD_RETENTION" "deployment.yaml with retention"
+	has "$dep" '"720h"' "deployment.yaml with retention"
+
+	echo "-- operator chooses the Service type and port"
+	svc=$(section "$(render --set ingestToken=check --set service.type=NodePort --set service.port=9000)" service.yaml)
+	has "$svc" "type: NodePort" "service.yaml"
+	has "$svc" "port: 9000" "service.yaml"
+)
+
 check_vet()  { go vet ./...; }
 check_lint() { golangci_lint run ./...; }
 check_test() { go test ./...; }
@@ -180,7 +255,7 @@ check_openapi_contract() {
 	go test -run Contract ./...
 }
 
-ALL=(build gofmt vet lint test race vuln docker container openapi_lint openapi_contract)
+ALL=(build gofmt vet lint test race vuln docker container helm openapi_lint openapi_contract)
 SELECTED=("${@:-${ALL[@]}}")
 
 declare -a RESULTS

@@ -32,6 +32,8 @@ schema: spec-driven
 #         - Summarize the archive outcome before finishing
 
 rules:
+  proposal:
+    - 'Before writing the proposal, interview the user with the grill-me skill (.agents/skills/grill-me, which runs the grilling skill in .agents/skills/grilling) until scope, out-of-scope items and acceptance criteria are settled; record the decisions in the proposal instead of assuming them'
   specs:
     - 'When a requirement describes observable behavior (CLI output or exit status, HTTP status or response body, or anything a client sees through an external interface), write its scenarios with the gherkin-authoring skill (.agents/skills/gherkin-authoring)'
     - 'Keep the "#### Scenario: <name>" header (openspec validate needs it) and put the Given/When/Then steps in a fenced gherkin block beneath it, without repeating a "Scenario:" line inside the block'
