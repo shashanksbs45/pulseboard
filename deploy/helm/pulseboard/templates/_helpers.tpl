@@ -45,10 +45,14 @@ no existing Secret is named (an existing Secret always wins).
 {{- end }}
 {{- end }}
 
-{{/* Key of the ingest token inside that Secret. */}}
+{{/*
+Key of the ingest token inside that Secret. An empty existingSecretKey falls
+back to "ingest-token" rather than rendering key: "", which the pod would only
+reject at runtime.
+*/}}
 {{- define "pulseboard.tokenSecretKey" -}}
 {{- if .Values.existingSecret }}
-{{- .Values.existingSecretKey }}
+{{- default "ingest-token" .Values.existingSecretKey }}
 {{- else }}
 {{- "ingest-token" }}
 {{- end }}

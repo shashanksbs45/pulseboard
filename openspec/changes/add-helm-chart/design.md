@@ -19,7 +19,7 @@ See proposal.md for why. The constraints come from what already exists:
 
 **Non-Goals:**
 - Supporting `replicas > 1`. The value is not exposed.
-- Configuring the in-container listen address. The container port stays 8080, and only the Service port is configurable.
+- Configuring the in-container listen address. The Deployment pins `PULSEBOARD_ADDR` to `:8080` instead of relying on the image's `ENV` default, written as plain literals next to `containerPort: 8080`, with `check_helm` asserting the two agree; probes and the Service follow through the `http` port name. Only the Service port is configurable.
 - Chart unit-test plugins (helm-unittest) or schema-validation tools (kubeconform). They are extra pinned dependencies for a chart with five templates.
 - A NetworkPolicy, ServiceAccount RBAC, or HPA.
 
@@ -33,7 +33,7 @@ Recreate deletes the old pod before creating the new one, which satisfies "Singl
 
 ### Ingest token: value or existing Secret, existing wins
 Values: `ingestToken: ""`, `existingSecret: ""`, `existingSecretKey: ingest-token`. A helper resolves the Secret name and key:
-- `existingSecret` set → use it with `existingSecretKey`; `secret.yaml` renders nothing.
+- `existingSecret` set → use it with `existingSecretKey` (an empty key falls back to `ingest-token` instead of rendering `key: ""`, which the pod would only reject at runtime); `secret.yaml` renders nothing.
 - else `ingestToken` set → `secret.yaml` renders `<fullname>` with key `ingest-token`.
 - else → `fail "pulseboard: set ingestToken or existingSecret (the ingest token is required)"`, so `helm install` and `helm template` both stop before creating anything.
 
@@ -49,7 +49,7 @@ Pod: `runAsNonRoot: true`, `runAsUser: 65532`, `runAsGroup: 65532`, `fsGroup: 65
 Readiness and liveness are both `httpGet /healthz` on the named port `http` (8080). Readiness checks every 5s. Liveness checks every 10s with `failureThreshold: 3`, so one slow check doesn't restart the pod. Startup is fast (open SQLite, listen), so there is no startup probe. `terminationGracePeriodSeconds: 15`, matching the README's `--stop-timeout 15` for Docker, gives the 10s drain room before SIGKILL.
 
 ### Values surface
-`image.repository: pulseboard`, `image.tag: dev`, `image.pullPolicy: IfNotPresent` (matches `docker build -t pulseboard:dev .` + `minikube image load pulseboard:dev`; a remote registry sets all three); `retention: ""` (rendered as `PULSEBOARD_RETENTION` only when non-empty, so the server's own default holds otherwise); `service.type: ClusterIP`, `service.port: 8080`; `persistence.*`; `resources: {}`; `podAnnotations: {}`; `nodeSelector`/`tolerations`/`affinity`. Nothing else. Every value must be exercised by a `helm` check assertion or a manual verification step.
+`image.repository: pulseboard`, `image.tag: dev`, `image.pullPolicy: IfNotPresent` (matches `docker build -t pulseboard:dev .` + `minikube image load pulseboard:dev`; a remote registry sets all three); `imagePullSecrets: []` (rendered into the pod spec only when non-empty, for private registries); `retention: ""` (rendered as `PULSEBOARD_RETENTION` only when non-empty, so the server's own default holds otherwise); `service.type: ClusterIP`, `service.port: 8080`; `persistence.*`; `resources: {}`; `podAnnotations: {}`; `nodeSelector`/`tolerations`/`affinity`. Nothing else. `defaultvalues.yaml` next to `values.yaml` is a minikube preset passed with `-f` (`existingSecret: pulseboard`, `retention: 720h`, `service.type: NodePort`, small requests and a 256Mi memory limit); Helm never reads it on its own, so it changes no defaults. Every value must be exercised by a `helm` check assertion or a manual verification step.
 
 ### `helm` check in `scripts/check.sh`
 `check_helm` returns 77 when `helm` is not on `PATH`. Otherwise it runs `helm lint deploy/helm/pulseboard --set ingestToken=check` and then `helm template` assertions with `grep` on `--show-only` output for each template:

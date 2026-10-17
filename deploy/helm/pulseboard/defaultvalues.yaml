@@ -1,0 +1,28 @@
+# Preset for a local minikube install. Helm does not read this file on its own;
+# pass it with -f, and anything not set here keeps its default from values.yaml:
+#
+#   kubectl create secret generic pulseboard --from-literal=ingest-token=change-me
+#   helm upgrade --install pulseboard deploy/helm/pulseboard \
+#     -f deploy/helm/pulseboard/defaultvalues.yaml
+#   curl -i "$(minikube service pulseboard --url)/healthz"
+
+# Read the ingest token from a Secret you create (above), so installs and
+# upgrades need no --set and the token stays out of Helm's release history.
+existingSecret: pulseboard
+
+# Keep raw points for 30 days.
+retention: 720h
+
+# Reachable on the minikube node, so `minikube service pulseboard --url` works
+# without a port-forward.
+service:
+  type: NodePort
+
+# Small enough for a laptop cluster. The memory limit leaves headroom for
+# SQLite's page cache; raise it if the pod is OOM-killed.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

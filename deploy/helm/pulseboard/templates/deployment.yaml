@@ -29,6 +29,10 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       # Longer than the server's 10s drain, so in-flight requests finish and the
       # database closes before SIGKILL.
       terminationGracePeriodSeconds: 15
@@ -50,6 +54,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "pulseboard.tokenSecretName" . }}
                   key: {{ include "pulseboard.tokenSecretKey" . }}
+            - name: PULSEBOARD_ADDR
+              value: ":8080"
             {{- with .Values.retention }}
             - name: PULSEBOARD_RETENTION
               value: {{ . | quote }}

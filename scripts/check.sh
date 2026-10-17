@@ -212,6 +212,10 @@ check_helm() (
 	[[ -z $(section "$out" secret.yaml) ]] || fail "secret.yaml rendered although existingSecret is set" "$out"
 	has "$(section "$out" deployment.yaml)" "name: pb-token" "deployment.yaml token Secret"
 
+	echo "-- empty existingSecretKey falls back to ingest-token"
+	dep=$(section "$(render --set existingSecret=pb-token --set existingSecretKey=)" deployment.yaml)
+	has "$dep" "key: ingest-token" "deployment.yaml with empty existingSecretKey"
+
 	echo "-- single pod, non-root, probes, grace period"
 	out=$(render --set ingestToken=check)
 	dep=$(section "$out" deployment.yaml)
@@ -222,8 +226,19 @@ check_helm() (
 	has "$dep" "fsGroup: 65532" "deployment.yaml"
 	has "$dep" "terminationGracePeriodSeconds: 15" "deployment.yaml"
 	[[ $(grep -cF "path: /healthz" <<<"$dep") == 2 ]] || fail "deployment.yaml: want readiness and liveness probes on /healthz" "$dep"
-	has "$dep" "containerPort: 8080" "deployment.yaml"
+	# The chart pins the listen address; it must name the port the pod declares
+	# (which the probes and Service use through the "http" port name).
+	addr_port=$(grep -A1 -- "- name: PULSEBOARD_ADDR" <<<"$dep" | sed -n 's/.*value: ":\([0-9]*\)".*/\1/p' || true)
+	container_port=$(sed -n 's/.*containerPort: \([0-9]*\).*/\1/p' <<<"$dep")
+	[[ -n $addr_port && $addr_port == "$container_port" ]] ||
+		fail "deployment.yaml: PULSEBOARD_ADDR port '${addr_port}' does not match containerPort '${container_port}'" "$dep"
 	lacks "$dep" "PULSEBOARD_RETENTION" "deployment.yaml without retention"
+	lacks "$dep" "imagePullSecrets" "deployment.yaml without imagePullSecrets"
+
+	echo "-- private registry pull secret"
+	dep=$(section "$(render --set ingestToken=check --set 'imagePullSecrets[0].name=regcred')" deployment.yaml)
+	has "$dep" "imagePullSecrets:" "deployment.yaml with imagePullSecrets"
+	has "$dep" "- name: regcred" "deployment.yaml with imagePullSecrets"
 
 	echo "-- data kept on uninstall"
 	has "$(section "$out" pvc.yaml)" "helm.sh/resource-policy: keep" "pvc.yaml"
@@ -237,6 +252,16 @@ check_helm() (
 	svc=$(section "$(render --set ingestToken=check --set service.type=NodePort --set service.port=9000)" service.yaml)
 	has "$svc" "type: NodePort" "service.yaml"
 	has "$svc" "port: 9000" "service.yaml"
+
+	echo "-- minikube preset (defaultvalues.yaml)"
+	helm lint "$chart" -f "$chart/defaultvalues.yaml"
+	out=$(render -f "$chart/defaultvalues.yaml")
+	[[ -z $(section "$out" secret.yaml) ]] || fail "preset rendered a Secret although it sets existingSecret" "$out"
+	dep=$(section "$out" deployment.yaml)
+	has "$dep" "name: pulseboard" "preset deployment.yaml token Secret"
+	has "$dep" '"720h"' "preset deployment.yaml retention"
+	has "$dep" "memory: 256Mi" "preset deployment.yaml resources"
+	has "$(section "$out" service.yaml)" "type: NodePort" "preset service.yaml"
 )
 
 check_vet()  { go vet ./...; }

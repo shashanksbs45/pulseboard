@@ -55,11 +55,19 @@ kubectl port-forward svc/pulseboard 8080:8080 &
 curl -i http://localhost:8080/healthz
 ```
 
-To keep the token out of Helm's release history, create the Secret yourself and point the chart at it. An existing Secret always wins over `ingestToken`:
+`--set ingestToken=...` is fine for trying the chart locally, but the token ends up in your shell history and in Helm's release record (readable by anyone who can read Secrets in the namespace, e.g. with `helm get values`). For anything else, create the Secret yourself and point the chart at it. An existing Secret always wins over `ingestToken`:
 
 ```sh
 kubectl create secret generic pb-token --from-literal=ingest-token=change-me
 helm install pulseboard deploy/helm/pulseboard --set existingSecret=pb-token
+```
+
+For minikube, `deploy/helm/pulseboard/defaultvalues.yaml` is a ready-made preset: the token from a Secret named `pulseboard`, 720h retention, a `NodePort` Service and small resource requests and limits. Helm doesn't read it on its own, so pass it with `-f`:
+
+```sh
+kubectl create secret generic pulseboard --from-literal=ingest-token=change-me
+helm upgrade --install pulseboard deploy/helm/pulseboard -f deploy/helm/pulseboard/defaultvalues.yaml
+curl -i "$(minikube service pulseboard --url)/healthz"
 ```
 
 The chart fails to install if neither `ingestToken` nor `existingSecret` is set. Other values (see `values.yaml`):
@@ -67,7 +75,8 @@ The chart fails to install if neither `ingestToken` nor `existingSecret` is set.
 | Value | Default | Meaning |
 |---|---|---|
 | `image.repository` / `image.tag` / `image.pullPolicy` | `pulseboard` / `dev` / `IfNotPresent` | Image to run |
-| `existingSecretKey` | `ingest-token` | Key holding the token in `existingSecret` |
+| `imagePullSecrets` | `[]` | Pull secrets for a private registry, e.g. `[{name: regcred}]` (create with `kubectl create secret docker-registry`) |
+| `existingSecretKey` | `ingest-token` | Key holding the token in `existingSecret`. Empty also means `ingest-token` |
 | `retention` | *(server default, 168h)* | `PULSEBOARD_RETENTION` |
 | `service.type` / `service.port` | `ClusterIP` / `8080` | How the server is exposed. With `NodePort`, use `minikube service pulseboard --url` |
 | `persistence.size` / `persistence.storageClass` | `1Gi` / cluster default | The data volume |
@@ -75,6 +84,7 @@ The chart fails to install if neither `ingestToken` nor `existingSecret` is set.
 
 - **Single instance:** SQLite has one writer, so the chart always runs exactly one pod and replaces it with the `Recreate` strategy: the old pod stops before the new one starts, so an upgrade has a short gap. The volume is ReadWriteOnce, so if a node dies the pod may wait for the volume to detach.
 - **Rebuilding the image:** with the `dev` tag and `IfNotPresent`, a rebuilt image isn't picked up on its own. Run `kubectl rollout restart deployment/pulseboard` after `minikube image load`.
+- **Rotating the token:** the server reads the token only at startup. Changing `ingestToken` with `helm upgrade` restarts the pod for you. If you use `existingSecret`, the chart can't see the Secret's contents, so after updating it run `kubectl rollout restart deployment/pulseboard`.
 - **Data on uninstall:** `helm uninstall pulseboard` keeps the `pulseboard-data` claim, and installing again with the same name and namespace reuses it. To delete the data, run `kubectl delete pvc pulseboard-data`.
 - **Stopping:** the pod has a 15-second termination grace period, longer than the server's 10-second drain, so it shuts down cleanly.
 

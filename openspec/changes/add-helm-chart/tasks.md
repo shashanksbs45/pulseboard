@@ -11,6 +11,7 @@
 
 - [x] 2.1 Add the token-source helper to `_helpers.tpl` and `templates/secret.yaml`: existing Secret wins, else the chart creates `<fullname>` with key `ingest-token`, else `fail` with a message naming the ingest token; verify by hand with `helm template` for all three cases
 - [x] 2.2 Add `check_helm` assertions: no token → non-zero exit and "ingest token" in the error; `ingestToken` → a Secret renders; `existingSecret=pb-token` plus `ingestToken` → `secret.yaml` renders nothing; verify each assertion fails when its template is temporarily broken
+- [x] 2.3 Make an empty `existingSecretKey` fall back to `ingest-token` (`default` in the key helper) and add a `check_helm` assertion that `existingSecretKey=` renders `key: ingest-token`; verify the assertion fails when the fallback is removed
 
 ## 3. Workload: Deployment, storage and Service
 
@@ -18,6 +19,9 @@
 - [x] 3.2 Add `templates/pvc.yaml` (`<fullname>-data`, ReadWriteOnce, `persistence.size`, optional `persistence.storageClass`, `helm.sh/resource-policy: keep`) and `templates/service.yaml` (`service.type`, `service.port` → target port `http`); verify `helm lint` passes
 - [x] 3.3 Add `check_helm` assertions for the Deployment (`replicas: 1`, `type: Recreate`, `runAsUser: 65532`, `fsGroup: 65532`, `terminationGracePeriodSeconds: 15`, two `/healthz` probes, no `PULSEBOARD_RETENTION` by default and `720h` with `retention=720h`), the PVC keep annotation, and the Service (`NodePort` and port 9000 with those values); verify `scripts/check.sh helm` passes and that changing `Recreate` to `RollingUpdate` makes it fail
 - [x] 3.4 Add `templates/NOTES.txt` with the port-forward or `minikube service` command, a `/healthz` curl, and a note that the PVC is kept on uninstall with the `kubectl delete pvc` command; verify it prints after `helm install --dry-run`
+- [x] 3.5 Add `deploy/helm/pulseboard/defaultvalues.yaml`, a minikube preset passed with `-f` (`existingSecret: pulseboard`, `retention: 720h`, `service.type: NodePort`, requests 50m/64Mi and a 256Mi memory limit), document it in `README.md`, and add `check_helm` assertions that it lints and renders those settings with no chart-created Secret; verify `scripts/check.sh helm` passes
+- [x] 3.6 Pin the listen address in `deployment.yaml`: set `PULSEBOARD_ADDR` to `":8080"` next to `containerPort: 8080` (plain literals, each commented to point at the other) instead of relying on the image's default, and replace the `containerPort: 8080` assertion in `check_helm` with one that the rendered `PULSEBOARD_ADDR` port equals `containerPort`; verify the check fails when the env var is removed or `containerPort` is changed to another port on its own, and passes when both change together
+- [x] 3.7 Add `imagePullSecrets: []` to `values.yaml`, render it into the pod spec only when non-empty, document it in `README.md`, and add `check_helm` assertions that it is absent by default and renders `- name: regcred` when set; verify `scripts/check.sh helm` passes and that removing the template block makes it fail
 
 ## 4. Run on Kubernetes (docs)
 
