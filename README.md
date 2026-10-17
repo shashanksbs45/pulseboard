@@ -41,6 +41,53 @@ curl -i http://localhost:8080/healthz
 - **Stopping:** the server drains in-flight requests for up to 10 seconds, which is also Docker's default stop timeout, so a slow request could be killed before the database closes. `--stop-timeout 15` (or `stop_grace_period: 15s` in Compose) gives it room. `docker stop pulseboard` then exits with status 0.
 - **Health checks:** the image has no `HEALTHCHECK`, because the distroless base has no shell or HTTP client. Probe `GET /healthz` from outside instead, for example a Kubernetes `httpGet` liveness and readiness probe on port 8080. It returns 503 when the database is unreachable.
 
+## Run on Kubernetes
+
+The Helm chart in `deploy/helm/pulseboard` (Helm 3 or 4) runs pulseboard as a single pod with its database on a PersistentVolumeClaim. On minikube, build the image locally and load it into the cluster, so no registry is needed:
+
+```sh
+minikube start
+docker build -t pulseboard:dev .
+minikube image load pulseboard:dev
+helm install pulseboard deploy/helm/pulseboard --set ingestToken=change-me
+kubectl rollout status deployment/pulseboard
+kubectl port-forward svc/pulseboard 8080:8080 &
+curl -i http://localhost:8080/healthz
+```
+
+`--set ingestToken=...` is fine for trying the chart locally, but the token ends up in your shell history and in Helm's release record (readable by anyone who can read Secrets in the namespace, e.g. with `helm get values`). For anything else, create the Secret yourself and point the chart at it. An existing Secret always wins over `ingestToken`:
+
+```sh
+kubectl create secret generic pb-token --from-literal=ingest-token=change-me
+helm install pulseboard deploy/helm/pulseboard --set existingSecret=pb-token
+```
+
+For minikube, `deploy/helm/pulseboard/defaultvalues.yaml` is a ready-made preset: the token from a Secret named `pulseboard`, 720h retention, a `NodePort` Service and small resource requests and limits. Helm doesn't read it on its own, so pass it with `-f`:
+
+```sh
+kubectl create secret generic pulseboard --from-literal=ingest-token=change-me
+helm upgrade --install pulseboard deploy/helm/pulseboard -f deploy/helm/pulseboard/defaultvalues.yaml
+curl -i "$(minikube service pulseboard --url)/healthz"
+```
+
+The chart fails to install if neither `ingestToken` nor `existingSecret` is set. Other values (see `values.yaml`):
+
+| Value | Default | Meaning |
+|---|---|---|
+| `image.repository` / `image.tag` / `image.pullPolicy` | `pulseboard` / `dev` / `IfNotPresent` | Image to run |
+| `imagePullSecrets` | `[]` | Pull secrets for a private registry, e.g. `[{name: regcred}]` (create with `kubectl create secret docker-registry`) |
+| `existingSecretKey` | `ingest-token` | Key holding the token in `existingSecret`. Empty also means `ingest-token` |
+| `retention` | *(server default, 168h)* | `PULSEBOARD_RETENTION` |
+| `service.type` / `service.port` | `ClusterIP` / `8080` | How the server is exposed. With `NodePort`, use `minikube service pulseboard --url` |
+| `persistence.size` / `persistence.storageClass` | `1Gi` / cluster default | The data volume |
+| `resources`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` | empty | Usual pod settings |
+
+- **Single instance:** SQLite has one writer, so the chart always runs exactly one pod and replaces it with the `Recreate` strategy: the old pod stops before the new one starts, so an upgrade has a short gap. The volume is ReadWriteOnce, so if a node dies the pod may wait for the volume to detach.
+- **Rebuilding the image:** with the `dev` tag and `IfNotPresent`, a rebuilt image isn't picked up on its own. Run `kubectl rollout restart deployment/pulseboard` after `minikube image load`.
+- **Rotating the token:** the server reads the token only at startup. Changing `ingestToken` with `helm upgrade` restarts the pod for you. If you use `existingSecret`, the chart can't see the Secret's contents, so after updating it run `kubectl rollout restart deployment/pulseboard`.
+- **Data on uninstall:** `helm uninstall pulseboard` keeps the `pulseboard-data` claim, and installing again with the same name and namespace reuses it. To delete the data, run `kubectl delete pvc pulseboard-data`.
+- **Stopping:** the pod has a 15-second termination grace period, longer than the server's 10-second drain, so it shuts down cleanly.
+
 ## Configuration
 
 Each setting can be passed as a flag or an environment variable. If both are set, the flag wins.
@@ -123,7 +170,7 @@ go vet ./...
 go test -race ./...
 ```
 
-To run every quality check (go build, gofmt, go vet, golangci-lint, tests, race tests, govulncheck, the Docker image build and container smoke test when Docker is running, and the OpenAPI checks once a spec exists) and get a pass/fail summary:
+To run every quality check (go build, gofmt, go vet, golangci-lint, tests, race tests, govulncheck, the Docker image build and container smoke test when Docker is running, the Helm chart lint and render checks when `helm` is installed, and the OpenAPI checks once a spec exists) and get a pass/fail summary:
 
 ```sh
 scripts/check.sh            # all checks

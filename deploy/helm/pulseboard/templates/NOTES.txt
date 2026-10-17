@@ -1,0 +1,13 @@
+pulseboard is running as a single pod in namespace {{ .Release.Namespace }}.
+
+Reach it from your machine:
+{{- if eq .Values.service.type "NodePort" }}
+  curl -i "$(minikube service {{ include "pulseboard.fullname" . }} -n {{ .Release.Namespace }} --url)/healthz"
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "pulseboard.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  curl -i http://localhost:{{ .Values.service.port }}/healthz
+{{- end }}
+
+Metric data lives on the PersistentVolumeClaim {{ include "pulseboard.fullname" . }}-data.
+It is kept on `helm uninstall` so a reinstall reuses it. To delete the data:
+  kubectl -n {{ .Release.Namespace }} delete pvc {{ include "pulseboard.fullname" . }}-data

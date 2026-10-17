@@ -2,14 +2,14 @@
 
 ## What this repo is
 
-`pulseboard` — a platform to collect, store, and visualize system/application metrics. It is a single Go binary (module `github.com/shashanksbs45/pulseboard`, Go 1.26): `cmd/pulseboard` (CLI entrypoint, `serve` subcommand) and `internal/` packages (`config`, `server`, `ingest`, `store`, `store/sqlite`, `retention`). Storage is SQLite via the pure-Go `modernc.org/sqlite` driver, so builds need no CGO. All product work starts as an OpenSpec change. CI is GitHub Actions (`.github/workflows/ci.yml`), which runs `scripts/check.sh` on pushes to `main` and on pull requests.
+`pulseboard` — a platform to collect, store, and visualize system/application metrics. It is a single Go binary (module `github.com/shashanksbs45/pulseboard`, Go 1.26): `cmd/pulseboard` (CLI entrypoint, `serve` subcommand) and `internal/` packages (`config`, `server`, `ingest`, `store`, `store/sqlite`, `retention`), plus a Helm chart in `deploy/helm/pulseboard/` for Kubernetes. Storage is SQLite via the pure-Go `modernc.org/sqlite` driver, so builds need no CGO. All product work starts as an OpenSpec change. CI is GitHub Actions (`.github/workflows/ci.yml`), which runs `scripts/check.sh` on pushes to `main` and on pull requests.
 
 ## Commands
 
 - Build: `go build ./...`
 - Test: `go test -race ./...` (tests use temp-file SQLite databases; nothing external is needed)
 - Vet: `go vet ./...`
-- All quality checks: `scripts/check.sh` (go build, gofmt, vet, golangci-lint, test, race, govulncheck, Docker image build and container smoke test — both skipped without a Docker daemon, OpenAPI lint/contract — skipped until `openapi.yaml` exists). Run a subset with e.g. `scripts/check.sh lint race`. Run it before committing.
+- All quality checks: `scripts/check.sh` (go build, gofmt, vet, golangci-lint, test, race, govulncheck, Docker image build and container smoke test — both skipped without a Docker daemon, Helm chart lint and render assertions — skipped without `helm`, OpenAPI lint/contract — skipped until `openapi.yaml` exists). Run a subset with e.g. `scripts/check.sh lint race`. Run it before committing.
 - Run locally: `PULSEBOARD_INGEST_TOKEN=dev go run ./cmd/pulseboard serve` (see `README.md` for config and the end-to-end check)
 
 ## Source of truth
