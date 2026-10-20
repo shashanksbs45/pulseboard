@@ -1,0 +1,134 @@
+<mxfile host="app.diagrams.net" agent="C4 Diagram Skill" version="24.0.0" type="device">
+  <diagram id="c4-container" name="Pulseboard - C4 Container (add-query-api)">
+    <mxGraphModel dx="1600" dy="940" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="940" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- LAYER 1: Persons -->
+        <mxCell id="person_1" value="" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052E56;" vertex="1" parent="1">
+          <mxGeometry x="300" y="20" width="40" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="person_1_label" value="&lt;b&gt;Homelab Operator&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;color:#666666&quot;&gt;[Person]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;color:#666666&quot;&gt;Runs pulseboard serve and sets its tokens and retention.&lt;/font&gt;" style="text;html=1;fontSize=12;align=center;verticalAlign=top;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="210" y="85" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="person_2" value="" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052E56;" vertex="1" parent="1">
+          <mxGeometry x="620" y="20" width="40" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="person_2_label" value="&lt;b&gt;Metrics Reader&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;color:#666666&quot;&gt;[Person]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;color:#666666&quot;&gt;Explores and charts metrics with curl, scripts or the future dashboard. NEW&lt;/font&gt;" style="text;html=1;fontSize=12;align=center;verticalAlign=top;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="530" y="85" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- LAYER 2: System boundary and containers -->
+        <mxCell id="boundary_1" value="Pulseboard [Software System]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#444444;strokeWidth=2;dashed=1;fontSize=16;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=10;fontColor=#444444;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="320" y="250" width="940" height="220" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="container_1" value="&lt;b&gt;Pulseboard Server&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;[Container: Go 1.26 binary, pulseboard serve]&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Ingests points, serves discovery and range queries, runs retention, reports health.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=0;fillColor=#438DD5;fontColor=#ffffff;strokeColor=none;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="360" y="310" width="240" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="db_1" value="&lt;b&gt;Metrics Database&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;[Container: SQLite WAL file, modernc.org/sqlite]&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;metrics, series and points tables. Schema unchanged by this change.&lt;/font&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#438DD5;fontColor=#ffffff;strokeColor=none;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="980" y="310" width="240" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- LAYER 3: External systems -->
+        <mxCell id="ext_1" value="&lt;b&gt;Metric Sources&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;[External System]&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;About 10 homelab apps and agents pushing gauges and counters.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=0;fillColor=#999999;fontColor=#ffffff;strokeColor=none;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="200" y="660" width="240" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ext_2" value="&lt;b&gt;Health Checker&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;[External System]&lt;/font&gt;&lt;br/&gt;&lt;br/&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Uptime monitor or Kubernetes probes.&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;container=0;fillColor=#999999;fontColor=#ffffff;strokeColor=none;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="640" y="660" width="240" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- CONNECTIONS -->
+        <mxCell id="conn_1" value="Configures and stops [CLI flags, env vars, signals]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" source="person_1_label" target="container_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-60" y="-10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn_2" value="NEW: Lists metrics, labels, series; queries points&lt;br/&gt;[GET /api/v1/metrics*, /api/v1/query, HTTP/JSON, optional read token]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;labelBackgroundColor=#ffffff;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" source="person_2_label" target="container_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="-10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn_3" value="Writes points; reads metrics, series and points [SQL]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;labelBackgroundColor=#ffffff;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" source="container_1" target="db_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn_4" value="Deletes expired points, hourly [SQL]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;dashed=1;dashPattern=5 5;labelBackgroundColor=#ffffff;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" edge="1" source="container_1" target="db_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn_5" value="Pushes points [POST /api/v1/ingest, HTTP/JSON + ingest token]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" source="ext_1" target="container_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-70" y="40" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn_6" value="Probes health [GET /healthz, HTTP, no auth]" style="endArrow=blockThin;endFill=1;fontSize=10;fontColor=#404040;strokeColor=#404040;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" edge="1" source="ext_2" target="container_1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="70" y="40" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- LEGEND -->
+        <mxCell id="legend_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="760" width="280" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_title" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;fontSize=13;fontColor=#333333;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="765" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_person_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="790" width="16" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_person_label" value="Person" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1334" y="788" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_container_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#438DD5;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="814" width="16" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_container_label" value="Container" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1334" y="812" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_db_box" value="" style="shape=cylinder3;whiteSpace=wrap;html=1;size=4;fillColor=#438DD5;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="838" width="16" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_db_label" value="Database" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1334" y="836" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_ext_box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="862" width="16" height="16" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_ext_label" value="External System" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1334" y="860" width="120" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_sync_line" value="" style="endArrow=blockThin;endFill=1;strokeColor=#404040;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1470" y="798" as="sourcePoint"/>
+            <mxPoint x="1500" y="798" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend_sync_label" value="Synchronous" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1504" y="788" width="74" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend_async_line" value="" style="endArrow=blockThin;endFill=1;strokeColor=#404040;dashed=1;dashPattern=5 5;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1470" y="822" as="sourcePoint"/>
+            <mxPoint x="1500" y="822" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend_async_label" value="Asynchronous" style="text;html=1;fontSize=11;fontColor=#333333;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1504" y="812" width="74" height="20" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
