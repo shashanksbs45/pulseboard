@@ -63,7 +63,7 @@ Inside the Pulseboard Server container, the components change as follows:
 | **Query** (new) | `internal/query` | Read handlers, parameter validation, cursors, bucketing, error bodies | store (`Reader` interface only) |
 | Store | `internal/store` | Gains a `Reader` interface and read model types | — |
 | SQLite Store | `internal/store/sqlite` | Implements `Reader` | store, Metrics Database |
-| Config | `internal/config` | Gains `ReadToken` | — |
+| Config | `internal/config` | Gains `ReadToken` and `RequireReadToken`; startup validation rejects a required but empty token | — |
 | Entrypoint | `cmd/pulseboard` | Builds the query handler and passes it, with the read token, to `server.New` | all of the above |
 
 ## Decisions
@@ -103,7 +103,9 @@ WHERE series_id = ? AND ts BETWEEN ? AND ? AND ts > ?   -- last clause only on t
 ORDER BY ts LIMIT ?
 ```
 
-This uses the `(series_id, ts)` primary key directly and stops as soon as the page is full. Every page costs the same no matter how deep the walk is. That's the reason for the "no offset" decision.
+This uses the `(series_id, ts)` primary key directly. Every page costs the same no matter how deep the walk is. That's the reason for the "no offset" decision.
+
+**Lookahead of one.** A page reads up to `limit + 1` points across the series (the `LIMIT` on each scan is the number still needed plus one). If the extra point exists, it's dropped and the cursor points at the `limit`-th point. Otherwise `next_cursor` is `null`. Stopping at exactly `limit` would hand out a cursor whenever the total is a multiple of `limit`, and the client's next request would return an empty page.
 
 The queries for one page run inside one read transaction, so the page sees a consistent snapshot. Across pages, the keyset position (rather than a snapshot) guarantees that no point repeats and that points stored for the whole walk aren't skipped. WAL mode means these reads never block ingest.
 
@@ -111,7 +113,7 @@ The queries for one page run inside one read transaction, so the page sees a con
 
 ### Bucketing: streamed in Go, one code path for every aggregation
 
-The handler streams raw rows from `ReadPoints` through an aggregator that keeps one open bucket per series. It emits `[bucketStart, value]` when the bucket's start time changes, and stops once the page holds `limit` buckets. `bucketStart = floorDiv(ts, step) * step`, which floors correctly for negative values too.
+The handler streams raw rows from `ReadPoints` through an aggregator that keeps one open bucket per series. It emits `[bucketStart, value]` when the bucket's start time changes. The `limit`-th bucket is only complete once a point from a later bucket arrives or the stream ends, so the aggregator reads until one of those happens. A later point (in the same or a following series) means more results exist, so the cursor points at the `limit`-th bucket. The end of the stream means `next_cursor` is `null`. This is the bucketed form of the lookahead of one, and it costs at most one extra row. `bucketStart = floorDiv(ts, step) * step`, which floors correctly for negative values too.
 
 - **Gauges:** `avg` keeps a running sum and count. `min`, `max` and `sum` are folds. `last` keeps the value with the greatest timestamp.
 - **Counters:** `increase` keeps the previous value. Each point adds `v - prev`, or `v` when `v < prev` (a reset). The first point in the query range adds 0. `rate = increase / (step / 1000)`. `max` and `last` work as for gauges.
@@ -140,7 +142,7 @@ Cost: a restart invalidates in-flight cursors (see Risks).
 ### Read authentication: one middleware
 
 ```go
-func requireReadToken(token string, next http.Handler) http.Handler // token == "" → next unchanged
+func readAuth(token string, next http.Handler) http.Handler // token == "" → next unchanged
 ```
 
 `server.New` wraps the four read routes with this middleware. It compares `Authorization` against `"Bearer " + token` using `subtle.ConstantTimeCompare`, which is the same pattern as ingest. On failure it sends 401 with `WWW-Authenticate: Bearer` and the read error body. The ingest token is never compared here, so it can't authorize reads, as the spec requires. The startup log line records whether reads require a token, so an operator can see that reads are open.
@@ -188,14 +190,21 @@ Points are `[ts, value]` JSON arrays rather than objects, which roughly halves t
 - `secret.yaml` adds `read-token` only when `readToken` is set.
 - The Deployment always adds `PULSEBOARD_READ_TOKEN` from `secretKeyRef` with `optional: true`. It reads key `read-token` from the chart's own Secret, or `existingSecretReadTokenKey` from `existingSecret`.
   - If the key is missing, Kubernetes leaves the variable unset and the pod starts with reads open. That one mechanism covers the "no read token" and "existing Secret without the key" scenarios with no template branching.
+- **Fail closed on request.** `requireReadToken: false` is the default. When it's true:
+  - The Deployment sets `PULSEBOARD_REQUIRE_READ_TOKEN=true`. The server then refuses to start when the read token is empty, so a missing, misspelt or empty key leaves the pod in `CrashLoopBackOff`, with a log line naming the read token, instead of serving open reads. `helm install --wait` fails.
+  - With no `readToken` and no `existingSecret`, rendering `fail`s with a message naming the read token. That case can be caught before anything is created.
+  - The env ref stays `optional: true`, so there is one failure path, the server's startup check, for every way the token can go missing. *Alternative:* `optional: false` when required. Kubernetes would then report `CreateContainerConfigError` naming the missing key, but an empty value would still pass, so the server check is needed anyway, and two mechanisms would mean two failure modes to document.
 - The `helm` check in `scripts/check.sh` asserts:
   - `read-token` is absent from the Secret without `readToken` and present with it
   - The env entry is `optional: true`
   - The existing-Secret key is used when `existingSecret` is set
+  - `PULSEBOARD_REQUIRE_READ_TOKEN` is absent by default and `"true"` with `requireReadToken=true`
+  - `requireReadToken=true` without `readToken` or `existingSecret` fails to render, naming the read token
 
 ## Risks / Trade-offs
 
 - **[Reads are open by default]** Anyone who can reach the port can read every metric. → This is deliberate for trusted homelab networks. The README "Querying" section, the Helm values comments and the startup log all say how to set `PULSEBOARD_READ_TOKEN`. The entitlements change will replace this.
+- **[A config mistake can silently open reads]** A misspelt `existingSecretReadTokenKey` or an empty Secret value leaves the token unset, and the server starts with reads open. → Operators who need reads closed set `--require-read-token` (Helm: `requireReadToken: true`), which turns every such mistake into a startup failure. The README and `NOTES.txt` say this, and `NOTES.txt` prints whether reads are open or required.
 - **[A bucketed page can scan many raw rows]** `limit` caps buckets, not the raw points behind them. A week at `step=1h` over many series reads every raw point in the range. → At the stated scale (about 1k points/sec in total), a full week across all series is about 600M rows, but a single metric's series are a small fraction of that. The request context stops the scan when the client disconnects or the server drains on shutdown. Downsampling, already planned, is the long-term fix.
 - **[`count=true` is O(rows in range)]** → It's opt-in, first page only, and documented as costly for long ranges.
 - **[Cursors don't survive a restart]** The HMAC key is per process, so a pod restart mid-walk returns `invalid_cursor`. → The client restarts the walk from page 1. Walks are short-lived and restarts are rare. A persisted key can be added if this ever matters.

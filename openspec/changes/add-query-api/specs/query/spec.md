@@ -272,7 +272,7 @@ And the response contains no series
 ```
 
 ### Requirement: Query pagination
-`/query` SHALL return at most `limit` points per response (raw points or buckets, counted across all series), where `limit` defaults to 10,000 and SHALL NOT exceed 50,000. Results SHALL be ordered by series, then time. When more results remain, `next_cursor` SHALL be a string that returns the next page when passed as `cursor`; on the last page it SHALL be `null`.
+`/query` SHALL return at most `limit` points per response (raw points or buckets, counted across all series), where `limit` defaults to 10,000 and SHALL NOT exceed 50,000. Results SHALL be ordered by series, then time. When more results remain, `next_cursor` SHALL be a string that returns the next page when passed as `cursor`. On the page holding the last result it SHALL be `null`, including when the total is an exact multiple of `limit`, so a non-null cursor always leads to a non-empty page.
 
 #### Scenario: Walking pages
 ```gherkin
@@ -282,6 +282,14 @@ Then the first page holds 10 points and a next cursor
 And following the cursor returns a second page of 10 points and a next cursor
 And following that cursor returns a final page of 5 points with a null next cursor
 And the three pages together hold each of the 25 points exactly once
+```
+
+#### Scenario: Total is an exact multiple of the limit
+```gherkin
+Given the gauge "queue_depth" has 20 points in the range 0 to 100000
+When a client queries "queue_depth" over that range with limit 10
+Then the first page holds 10 points and a next cursor
+And following the cursor returns a second page of 10 points with a null next cursor
 ```
 
 #### Scenario: Series split across pages
@@ -336,6 +344,7 @@ When retention deletes points that the client has already received
 And the client follows the cursor
 Then the second page holds the remaining 10 points
 And none of them repeats a point from the first page
+And the second page has a null next cursor
 ```
 
 ### Requirement: Opt-in total count
