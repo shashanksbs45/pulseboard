@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "c4-diagram@c4-diagram-skill": true
+  }
+}
